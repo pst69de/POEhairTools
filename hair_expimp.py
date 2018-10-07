@@ -43,17 +43,48 @@ class hairporter():
     def export_hair(self, to_file, from_mesh, particlesystem):
 
         # export export_hair to given to_file
-        print('hairporter.export_hair: export to %s' % to_file)
+        print('hairporter.export_hair: export %s to %s' %
+              (particlesystem.name,to_file))
         me = from_mesh
-        # filter groups
+        export_dic = {}
+        hairs_dic = {}
+        # list particles to hair_dic
+        for ixHair,aHair in particlesystem.particles.items():
+            print('hairporter.export_hair: particle: %d keys: %d' %
+                  (ixHair,len(aHair.hair_keys)))
+            hair_dic = {}
+            print('hairporter.export_hair: particle x: %f y: %f z: %f' %
+                  (aHair.location[0],aHair.location[1],aHair.location[2]))
+            hair_dic['x'] = aHair.location[0]
+            hair_dic['y'] = aHair.location[1]
+            hair_dic['z'] = aHair.location[2]
+            for ixKey,aKey in aHair.hair_keys.items():
+                hair_dic[str(ixKey)] = {'x':aKey.co[0],'y':aKey.co[1],'z':aKey.co[2]}
+            hairs_dic[str(ixHair)] = hair_dic
+        # add hair_dic to export_dic
+        export_dic[particlesystem.name] = hairs_dic
+        output_file = open(to_file, 'w')
+        json.dump(export_dic, output_file, sort_keys=True, indent=4)
+        output_file.close()
         return
         # over export_hair()
 
     def import_hair(self, from_file, to_mesh, particlesystem):
 
         # import hair to particle system
-        print('hairporter.import_hair: import from %s' % from_file)
+        print('hairporter.import_hair: import %s from %s' %
+              (particlesystem.name,from_file))
         me = to_mesh
+        input_file = open(from_file, "r")
+        import_dic = None
+        try:
+            import_dic = json.load(input_file)
+        except:
+            print('Errors in json file: {0}'.format(simple_path(input_file)))
+            import_dic = None
+        input_file.close()
+        if import_dic:
+            print('Hair System of File: %s' % import_dic.keys()[0])
         return
         # over import_hair()
     # class over
@@ -76,10 +107,12 @@ class ToolsPanelHair(bpy.types.Panel):
         layout = self.layout
         scn = context.scene
         id_store = context.window_manager
+        meshobj = context.active_object
         # ~ toolsettings = context.tool_settings
         col = layout.column(align=True)
         row = col.row(align=True)
-        row.prop(id_store, "hair_expimp_particlesystem", text="", icon="PARTICLES")
+        #row.prop(id_store, "hair_expimp_particlesystem", text="", icon="PARTICLES")
+        row.prop_search(id_store, 'hair_expimp_particlesystem', meshobj, "particle_systems", text="Hair PartSys")
         row = col.row(align=True)
         row.operator('hair_expimp.export_hair', icon='EXPORT')
         row = col.row(align=True)
@@ -117,12 +150,13 @@ class HAIR_OT_expimp_export(bpy.types.Operator):
         obj = bpy.context.active_object
         mesh = bpy.context.active_object
         id_store = context.window_manager
+        hair = mesh.particle_systems[id_store.hair_expimp_particlesystem]
 
         #print("*************SELECTED FILES ***********")
         #print("FILEPATH: %s" % self.filepath) # display the file name and current path
         #for file in self.files:
         #    print("FILENAME: %s" % file.name)
-        hairPorter.export_hair(self.filepath, mesh, id_store.hair_expimp_particlesystem)
+        hairPorter.export_hair(self.filepath, mesh, hair)
 
         return {'FINISHED'}
 
@@ -158,8 +192,9 @@ class HAIR_OT_expimp_import(bpy.types.Operator):
         obj = bpy.context.active_object
         mesh = bpy.context.active_object
         id_store = context.window_manager
+        hair = mesh.particle_systems[id_store.hair_expimp_particlesystem]
 
-        hairPorter.import_hair(self.filepath, mesh, id_store.hair_expimp_particlesystem)
+        hairPorter.import_hair(self.filepath, mesh, hair)
 
         return {'FINISHED'}
 
